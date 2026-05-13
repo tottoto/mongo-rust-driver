@@ -1,16 +1,8 @@
 use crate::error::{Error, Result};
-use hickory_resolver::{
-    config::ResolverConfig,
-    lookup::{SrvLookup, TxtLookup},
-    Name,
-};
+use hickory_resolver::{config::ResolverConfig, lookup::Lookup, proto::rr::Name};
 
 #[cfg(feature = "gssapi-auth")]
-use hickory_resolver::{
-    lookup::{Lookup, ReverseLookup},
-    lookup_ip::LookupIp,
-    proto::rr::RecordType,
-};
+use hickory_resolver::{lookup_ip::LookupIp, proto::rr::RecordType};
 #[cfg(feature = "gssapi-auth")]
 use std::net::IpAddr;
 
@@ -28,7 +20,8 @@ impl AsyncResolver {
             None => hickory_resolver::TokioResolver::builder_tokio()
                 .map_err(Error::from_resolve_error)?,
         }
-        .build();
+        .build()
+        .map_err(Error::from_resolve_error)?;
 
         Ok(Self { resolver })
     }
@@ -58,7 +51,7 @@ impl AsyncResolver {
     }
 
     #[cfg(feature = "gssapi-auth")]
-    pub async fn reverse_lookup(&self, ip_addr: IpAddr) -> Result<ReverseLookup> {
+    pub async fn reverse_lookup(&self, ip_addr: IpAddr) -> Result<Lookup> {
         let lookup = self
             .resolver
             .reverse_lookup(ip_addr)
@@ -67,7 +60,7 @@ impl AsyncResolver {
         Ok(lookup)
     }
 
-    pub async fn srv_lookup(&self, query: &str) -> Result<SrvLookup> {
+    pub async fn srv_lookup(&self, query: &str) -> Result<Lookup> {
         let name = Name::from_str_relaxed(query).map_err(Error::from_resolve_proto_error)?;
         let lookup = self
             .resolver
@@ -77,7 +70,7 @@ impl AsyncResolver {
         Ok(lookup)
     }
 
-    pub async fn txt_lookup(&self, query: &str) -> Result<Option<TxtLookup>> {
+    pub async fn txt_lookup(&self, query: &str) -> Result<Option<Lookup>> {
         let name = Name::from_str_relaxed(query).map_err(Error::from_resolve_proto_error)?;
         let lookup_result = self.resolver.txt_lookup(name).await;
         match lookup_result {
